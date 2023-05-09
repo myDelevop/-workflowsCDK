@@ -48,6 +48,12 @@ export class WorkflowsCdkStack extends Stack {
     error: 'From Code Fail never mind'
   });
 
+  new tasks.LambdaInvoke(this, 'Get Final Job Status', {
+    lambdaFunction: getStatusLamba,
+    payload: sfn.TaskInput.fromJsonPathAt('$'),
+    inputPath: "$.guid",
+    resultPath: "$.status.Payload",
+  });
 /*
     const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
       lambda_function="ss",
