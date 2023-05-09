@@ -39,6 +39,12 @@ export class WorkflowsCdkStack extends Stack {
     resultPath: "$.guid",
   });
 
+  new sfn.Wait(this, 'Wait X seconds', {
+    time: sfn.WaitTime.secondsPath('$.waitSeconds')
+  });
+
+  
+
 /*
     const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
       lambda_function="ss",
