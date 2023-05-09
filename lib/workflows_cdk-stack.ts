@@ -1,6 +1,8 @@
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as ddb from 'aws-cdk-lib/aws-dynamodb';
+import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
+import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { Construct } from 'constructs';
 
 export class WorkflowsCdkStack extends Stack {
@@ -20,10 +22,29 @@ export class WorkflowsCdkStack extends Stack {
     const getStatusLamba = new lambda.Function(this, 'StatusLambda', {
       runtime: lambda.Runtime.PYTHON_3_8,
       handler: 'index.main',
-      code: lambda.Code.fromInline('def main(event, context):\n\treturn("SUCCEEDED")')
+      code: lambda.Code.fromInline('def main(event, context):\n\treturn("SUCCESSED")')
     });
 
-    /*const queue = new sqs.Queue(this, 'WorkflowsCdkQueue', {
+  // use the output of fn as input
+  new tasks.LambdaInvoke(this, 'Submit Job', {
+    lambdaFunction: submitLambda,
+    payload: sfn.TaskInput.fromJsonPathAt('$'),
+    resultPath: "$.guid",
+  });
+
+  // use the output of fn as input
+  new tasks.LambdaInvoke(this, 'Get Job Status', {
+    lambdaFunction: getStatusLamba,
+    payload: sfn.TaskInput.fromJsonPathAt('$'),
+    resultPath: "$.guid",
+  });
+
+/*
+    const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
+      lambda_function="ss",
+      inputPath="$.guid", 
+      outputPath="$.status");
+    const queue = new sqs.Queue(this, 'WorkflowsCdkQueue', {
       visibilityTimeout: Duration.seconds(300)
     });
 
