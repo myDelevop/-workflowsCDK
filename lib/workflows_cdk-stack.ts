@@ -24,7 +24,7 @@ export class WorkflowsCdkStack extends Stack {
     const getStatusLamba = new lambda.Function(this, 'StatusLambda', {
       runtime: lambda.Runtime.PYTHON_3_8,
       handler: 'index.main',
-      code: lambda.Code.fromInline('def main(event, context):\n\treturn("SUCCESSED")')
+      code: lambda.Code.fromInline('def main(event, context):\n\treturn("SUCCEEDED")')
     });
 
   // use the output of fn as input
@@ -35,17 +35,17 @@ export class WorkflowsCdkStack extends Stack {
   });
 
   // use the output of fn as input
-  new tasks.LambdaInvoke(this, 'Get Job Status', {
+  const getStatus = new tasks.LambdaInvoke(this, 'Get Job Status', {
     lambdaFunction: getStatusLamba,
     payload: sfn.TaskInput.fromJsonPathAt('$'),
     resultPath: "$.guid",
   });
 
-  new sfn.Wait(this, 'Wait X seconds', {
+  const waitX = new sfn.Wait(this, 'Wait X seconds', {
     time: sfn.WaitTime.secondsPath('$.waitSeconds')
   });
 
-  new sfn.Fail(this, 'ROCL: Job Failed No worries', {
+  const jobFailed = new sfn.Fail(this, 'ROCL: Job Failed No worries', {
     cause: 'Job Failed from Code don\'t worry',
     error: 'From Code Fail never mind'
   });
@@ -57,7 +57,7 @@ export class WorkflowsCdkStack extends Stack {
     resultPath: "$.status.Payload",
   });
 
-  new tasks.DynamoPutItem(this, 'Write to DDB', {
+  const putItemInTable = new tasks.DynamoPutItem(this, 'Write to DDB', {
     item: {
       "RequestId": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amz-Content-Sha256'),
       "Date": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amz-Date'),
@@ -67,6 +67,17 @@ export class WorkflowsCdkStack extends Stack {
     table: myTable,
     resultPath: '$.ddb',
   });
+
+
+  const definition = submitJob
+    .next(waitX)
+    .next(getStatus)
+    .next(new sfn.Choice(this, 'Job Complete?')
+      .when(sfn.Condition.stringEquals('$.status.Payload','FAILED'), jobFailed)
+      .when(sfn.Condition.stringEquals('$.status.Payload','SUCCEEDED'), putItemInTable)
+      .otherwise(waitX));
+
+  
 
 /*
     const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
