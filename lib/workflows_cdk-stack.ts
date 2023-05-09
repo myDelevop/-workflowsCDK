@@ -1,6 +1,7 @@
 import { Duration, Stack, StackProps } from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as ddb from 'aws-cdk-lib/aws-dynamodb';
+import * as cdk from 'aws-cdk-lib'
 import * as sfn from 'aws-cdk-lib/aws-stepfunctions';
 import * as tasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import { Construct } from 'constructs';
@@ -50,7 +51,7 @@ export class WorkflowsCdkStack extends Stack {
     error: 'From Code Fail never mind'
   });
 
-  new tasks.LambdaInvoke(this, 'Get Final Job Status', {
+  const finalStatus = new tasks.LambdaInvoke(this, 'Get Final Job Status', {
     lambdaFunction: getStatusLamba,
     payload: sfn.TaskInput.fromJsonPathAt('$'),
     inputPath: "$.guid",
@@ -59,15 +60,15 @@ export class WorkflowsCdkStack extends Stack {
 
   const putItemInTable = new tasks.DynamoPutItem(this, 'Write to DDB', {
     item: {
-      "RequestId": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amz-Content-Sha256'),
-      "Date": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amz-Date'),
-      "IP": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Forwarded-For'),
+      "RequestId": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.x-amzn-RequestId'),
+      "TraceID": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amzn-Trace-Id'),
       "Status": tasks.DynamoAttributeValue.fromString('$.status.Payload'),
     },
     table: myTable,
     resultPath: '$.ddb',
   });
 
+  putItemInTable.next(finalStatus);
 
   const definition = submitJob
     .next(waitX)
@@ -77,7 +78,10 @@ export class WorkflowsCdkStack extends Stack {
       .when(sfn.Condition.stringEquals('$.status.Payload','SUCCEEDED'), putItemInTable)
       .otherwise(waitX));
 
-  
+  new sfn.StateMachine(this, 'StateMachine', {
+    definition,
+    timeout: cdk.Duration.minutes(5)
+  });
 
 /*
     const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
