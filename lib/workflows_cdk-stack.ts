@@ -10,7 +10,9 @@ export class WorkflowsCdkStack extends Stack {
     super(scope, id, props);
 
     const myTable = new ddb.Table(this, 'MyTable', 
-      {partitionKey: {name: "RequestId", type: ddb.AttributeType.STRING}});
+      {partitionKey: {
+        name: "RequestId", type: ddb.AttributeType.STRING,
+      }});
 
     const submitLambda = new lambda.Function(this, 'SubmitLambda', {
       runtime: lambda.Runtime.PYTHON_3_8,
@@ -26,7 +28,7 @@ export class WorkflowsCdkStack extends Stack {
     });
 
   // use the output of fn as input
-  new tasks.LambdaInvoke(this, 'Submit Job', {
+  const submitJob = new tasks.LambdaInvoke(this, 'Submit Job', {
     lambdaFunction: submitLambda,
     payload: sfn.TaskInput.fromJsonPathAt('$'),
     resultPath: "$.guid",
@@ -54,6 +56,18 @@ export class WorkflowsCdkStack extends Stack {
     inputPath: "$.guid",
     resultPath: "$.status.Payload",
   });
+
+  new tasks.DynamoPutItem(this, 'Write to DDB', {
+    item: {
+      "RequestId": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amz-Content-Sha256'),
+      "Date": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amz-Date'),
+      "IP": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Forwarded-For'),
+      "Status": tasks.DynamoAttributeValue.fromString('$.status.Payload'),
+    },
+    table: myTable,
+    resultPath: '$.ddb',
+  });
+
 /*
     const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
       lambda_function="ss",
