@@ -43,7 +43,10 @@ export class WorkflowsCdkStack extends Stack {
     time: sfn.WaitTime.secondsPath('$.waitSeconds')
   });
 
-  
+  new sfn.Fail(this, 'ROCL: Job Failed No worries', {
+    cause: 'Job Failed from Code don\'t worry',
+    error: 'From Code Fail never mind'
+  });
 
 /*
     const submitJob = tasks.LambdaInvoke(self, "Get Job Status",
