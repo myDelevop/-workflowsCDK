@@ -10,14 +10,20 @@ export class WorkflowsCdkStack extends Stack {
     const myTable = new ddb.Table(this, 'MyTable', 
       {partitionKey: {name: "RequestId", type: ddb.AttributeType.STRING}});
 
-    const submitLambda = new lambda.Function(this, 'submitLambda', {
+    const submitLambda = new lambda.Function(this, 'SubmitLambda', {
       runtime: lambda.Runtime.PYTHON_3_8,
       handler: 'index.main',
       code: lambda.Code.fromInline('def main(event, context):\n\treturn(event)')
     });
 
 
-/*const queue = new sqs.Queue(this, 'WorkflowsCdkQueue', {
+    const getStatusLamba = new lambda.Function(this, 'StatusLambda', {
+      runtime: lambda.Runtime.PYTHON_3_8,
+      handler: 'index.main',
+      code: lambda.Code.fromInline('def main(event, context):\n\treturn("SUCCEEDED")')
+    });
+
+    /*const queue = new sqs.Queue(this, 'WorkflowsCdkQueue', {
       visibilityTimeout: Duration.seconds(300)
     });
 
