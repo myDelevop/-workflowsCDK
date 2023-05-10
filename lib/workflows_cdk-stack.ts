@@ -39,7 +39,7 @@ export class WorkflowsCdkStack extends Stack {
   const getStatus = new tasks.LambdaInvoke(this, 'Get Job Status', {
     lambdaFunction: getStatusLamba,
     payload: sfn.TaskInput.fromJsonPathAt('$'),
-    resultPath: "$.guid",
+    resultPath: "$.status",
   });
 
   const waitX = new sfn.Wait(this, 'Wait X seconds', {
@@ -60,11 +60,12 @@ export class WorkflowsCdkStack extends Stack {
 
   const putItemInTable = new tasks.DynamoPutItem(this, 'Write to DDB', {
     item: {
-      "RequestId": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.x-amzn-RequestId'),
-      "TraceID": tasks.DynamoAttributeValue.fromString('$.guid.SdkHttpMetadata.HttpHeaders.X-Amzn-Trace-Id'),
-      "Status": tasks.DynamoAttributeValue.fromString('$.status.Payload'),
+      "RequestId": tasks.DynamoAttributeValue.fromString(sfn.JsonPath.stringAt('$.guid.SdkHttpMetadata.HttpHeaders.x-amzn-RequestId')),
+      "TraceID": tasks.DynamoAttributeValue.fromString(sfn.JsonPath.stringAt('$.guid.SdkHttpMetadata.HttpHeaders.X-Amzn-Trace-Id')),
+      "Status": tasks.DynamoAttributeValue.fromString(sfn.JsonPath.stringAt('$.status.Payload'))
     },
     table: myTable,
+    inputPath: '$',
     resultPath: '$.ddb',
   });
 
